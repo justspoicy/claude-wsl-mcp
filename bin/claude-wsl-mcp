@@ -1,0 +1,10 @@
+#!/bin/sh
+# Claude Desktop 通过 wsl.exe 拉起本脚本。stdout 专供 MCP 协议，这里不能输出任何内容，提示一律写 stderr。
+set -eu
+self=$(readlink -f -- "$0")
+repo=$(dirname -- "$(dirname -- "$self")")
+if [ ! -x "$repo/.venv/bin/python" ]; then
+    echo "claude-wsl-mcp: 找不到 $repo/.venv，请先在 WSL 里运行 $repo/install.sh" >&2
+    exit 1
+fi
+exec "$repo/.venv/bin/python" -m claude_wsl_mcp "$@"

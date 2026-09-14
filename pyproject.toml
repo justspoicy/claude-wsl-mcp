@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "claude-wsl-mcp"
+version = "0.1.0"
+description = "让 Windows 上的 Claude Desktop 通过 MCP 在 WSL 里执行命令、读写文件，并隔离 Windows 宿主机文件"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=2.2,<3",
+    "tomli>=2; python_version < '3.11'",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+claude-wsl-mcp = "claude_wsl_mcp.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/claude_wsl_mcp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
