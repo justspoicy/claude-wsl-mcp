@@ -123,8 +123,9 @@ Node.js 不是本服务器的依赖；但若希望 Claude 在 WSL 里跑 npm/nod
 
 ## 排障
 
-- **Claude Desktop 里没出现工具**：确认是完全退出后重开的；看日志 `mcp.log` 与 `mcp-server-wsl.log`。
-  MSIX 版在 `%LOCALAPPDATA%\Packages\Claude_<ID>\LocalCache\Roaming\Claude\logs\`，传统安装版在 `%APPDATA%\Claude\logs\`。
+- **Claude Desktop 里没出现工具**：确认是完全退出后重开的；看日志 `mcp-server-wsl.log`（服务器写到 stderr 的内容也在里面）。
+  MSIX 版在 `%LOCALAPPDATA%\Packages\Claude_<ID>\LocalCache\Local\Claude\logs\`（实测）；传统安装版对应 `%LOCALAPPDATA%\Claude\logs\`，较旧版本在 `%APPDATA%\Claude\logs\`。
+  正常连上时日志里有 `Server started and connected successfully` 和 `tools/list` 的应答；Desktop 启动时先拉起一次又立即关闭，属正常现象。
 - **日志里“沙箱建立失败，拒绝启动”**：服务器必须以 root 启动（配置里的 `-u root`）。
 - **命令报 `Read-only file system` / 找不到 `/mnt/c`**：这是沙箱在起作用；确需访问 Windows 盘就改 `sandbox.windows_drives`，然后重启 Claude Desktop。
 - **命令超时**：`run_command` 默认 120 秒；长期运行的程序用 `start_background`。
