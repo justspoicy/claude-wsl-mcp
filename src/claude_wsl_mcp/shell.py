@@ -24,6 +24,12 @@ NON_INTERACTIVE_ENV = {
     "TERM": "dumb",
 }
 
+# 命令经这个环境变量交给 bash 再 eval，不放进命令行参数：放进参数的话整条命令会出现在 ps 里，
+# `ps | grep` 查进程会匹配到执行命令的这层 bash 自己，而在终端里直接敲命令不会这样。
+# 先取消导出再 eval，命令起的子进程不继承它。与 bash -c 相比，只有语法错误提示的前缀由 "-c:" 变成 "eval:"。
+COMMAND_ENV = "CLAUDE_WSL_MCP_COMMAND"
+EVAL_COMMAND = f'export -n {COMMAND_ENV}; eval "${COMMAND_ENV}"'
+
 
 def decode(data: bytes) -> str:
     return data.decode("utf-8", errors="replace")
@@ -137,8 +143,8 @@ def _close_pipes(proc: asyncio.subprocess.Process) -> None:
         transport.close()
 
 
-def bash_argv(command: str, login_shell: bool) -> list[str]:
-    return ["/bin/bash", "-lc" if login_shell else "-c", command]
+def bash_argv(login_shell: bool) -> list[str]:
+    return ["/bin/bash", "-lc" if login_shell else "-c", EVAL_COMMAND]
 
 
 async def run_command(
@@ -155,10 +161,10 @@ async def run_command(
     run_id = time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
     stdout = StreamCapture("stdout", max_output_bytes, spill_dir, run_id)
     stderr = StreamCapture("stderr", max_output_bytes, spill_dir, run_id)
-    full_env = {**NON_INTERACTIVE_ENV, **env}
+    full_env = {**NON_INTERACTIVE_ENV, **env, COMMAND_ENV: command}
     started = time.monotonic()
     proc = await asyncio.create_subprocess_exec(
-        *bash_argv(command, login_shell),
+        *bash_argv(login_shell),
         cwd=cwd,
         env=full_env,
         stdin=asyncio.subprocess.PIPE if stdin_text is not None else asyncio.subprocess.DEVNULL,

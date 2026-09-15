@@ -36,3 +36,18 @@ def test_job_exit_code_is_recorded(tmp_path):
     assert manager.exit_code(job) == 7
     assert "exit_code=7" in manager.describe_status(job)
     assert manager.tail(job, 5)[0] == "bye"
+
+
+def test_job_command_text_not_in_process_args(tmp_path):
+    # 外层记退出码的 bash（$PPID）与内层执行命令的 bash（$$），命令行参数里都不带命令原文
+    manager = JobManager(tmp_path / "state")
+    job = manager.start(
+        "xargs -0 echo < /proc/$PPID/cmdline; xargs -0 echo < /proc/$$/cmdline; true  # marker-9b2e",
+        cwd=str(tmp_path),
+        env=dict(os.environ),
+        name="args",
+        login_shell=False,
+    )
+    assert wait_until(lambda: not manager.is_running(job))
+    out = manager.tail(job, 10)[0]
+    assert len(out.splitlines()) == 2 and "marker-9b2e" not in out, out

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import signal
 import subprocess
 import tempfile
@@ -18,10 +19,10 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Mapping
 
-from .shell import NON_INTERACTIVE_ENV
+from .shell import COMMAND_ENV, EVAL_COMMAND, NON_INTERACTIVE_ENV
 
-# $1 = 用户命令，$2 = 退出码文件；用位置参数传递，免去引号转义
-_WRAPPER = '{shell} "$1"; code=$?; printf "%s\\n" "$code" > "$2"; exit "$code"'
+# $1 = 退出码文件。命令经环境变量交给内层 bash（见 shell.EVAL_COMMAND），哪一层的命令行参数里都没有命令原文
+_WRAPPER = '{shell} {command}; code=$?; printf "%s\\n" "$code" > "$1"; exit "$code"'
 
 
 @dataclass
@@ -75,12 +76,12 @@ class JobManager:
         job_id = uuid.uuid4().hex[:8]
         log_path = self.dir / f"{job_id}.log"
         exit_path = self.dir / f"{job_id}.exit"
-        wrapper = _WRAPPER.format(shell="bash -lc" if login_shell else "bash -c")
+        wrapper = _WRAPPER.format(shell="bash -lc" if login_shell else "bash -c", command=shlex.quote(EVAL_COMMAND))
         with open(log_path, "ab") as log:
             proc = subprocess.Popen(
-                ["/bin/bash", "-c", wrapper, "claude-wsl-mcp-job", command, str(exit_path)],
+                ["/bin/bash", "-c", wrapper, "claude-wsl-mcp-job", str(exit_path)],
                 cwd=cwd,
-                env={**NON_INTERACTIVE_ENV, **env},
+                env={**NON_INTERACTIVE_ENV, **env, COMMAND_ENV: command},
                 stdin=subprocess.DEVNULL,
                 stdout=log,
                 stderr=subprocess.STDOUT,

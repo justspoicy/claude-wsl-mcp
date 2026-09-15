@@ -4,6 +4,8 @@ import os
 import signal
 import time
 
+import pytest
+
 from claude_wsl_mcp import shell
 
 
@@ -33,6 +35,19 @@ def test_exit_code_and_separate_streams(tmp_path):
     assert res.exit_code == 3
     assert res.stdout.text() == "out\n"
     assert res.stderr.text() == "err\n"
+
+
+@pytest.mark.parametrize("login_shell", [False, True])
+def test_command_text_not_in_process_args(tmp_path, login_shell):
+    # 终端里直接敲的命令不会出现在 ps 里；执行命令的这层 bash 也不能让 `ps | grep` 匹配到自己
+    res = run(
+        "xargs -0 echo < /proc/$$/cmdline; printenv CLAUDE_WSL_MCP_COMMAND || echo unset  # marker-5d1c",
+        tmp_path,
+        login_shell=login_shell,
+    )
+    lines = res.stdout.text().splitlines()
+    assert lines[0].startswith("/bin/bash") and "marker-5d1c" not in lines[0], lines
+    assert lines[1] == "unset"  # 传命令用的环境变量不留给命令起的子进程
 
 
 def test_cwd_and_stdin(tmp_path):
